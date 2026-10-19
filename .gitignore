@@ -1,0 +1,13 @@
+.DS_Store
+
+# Local builds and release artifacts
+dist/
+fixed/
+release/
+outputs/
+work/
+
+# Local runtime state
+*.log
+*.pid
+launcher.lock.d/
