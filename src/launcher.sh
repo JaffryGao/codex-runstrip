@@ -1,5 +1,5 @@
 #!/bin/bash
-# Codex fork —— 双击即用：以调试模式启动 Codex，并挂上底部状态条。
+# Codex Runstrip —— 双击即用：以调试模式启动 Codex，并挂上底部状态条。
 # 全程静默，不弹任何窗口；状态写入日志。
 
 set -u
@@ -40,7 +40,7 @@ for c in "$APP_DIR/node/bin/node" /opt/homebrew/bin/node /usr/local/bin/node \
 done
 if [ -z "$NODE" ]; then
   log "找不到 Node.js 22 或更新版本，无法注入状态条"
-  osascript -e 'display alert "Runstrip 需要 Node.js 22 或更新版本" message "轻量版未内置 Node.js。请安装 Node.js 22 或更新版本（支持官方安装包、Homebrew、默认目录的 nvm），或改用内置 Node.js 的完整版 Runstrip。安装后重新打开本应用。\n\nRunstrip Lite requires Node.js 22+. Install Node.js or use the full edition with bundled Node.js." as warning' >/dev/null 2>&1
+  osascript -e 'display alert "Codex Runstrip 需要 Node.js 22 或更新版本" message "轻量版未内置 Node.js。请安装 Node.js 22 或更新版本（支持官方安装包、Homebrew、默认目录的 nvm），或改用内置 Node.js 的完整版 Codex Runstrip。安装后重新打开本应用。\n\nCodex Runstrip Lite requires Node.js 22+. Install Node.js or use the full edition with bundled Node.js." as warning' >/dev/null 2>&1
   exit 1
 fi
 

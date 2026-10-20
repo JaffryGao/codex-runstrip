@@ -24,8 +24,8 @@ RELEASE_ROOT="${RUNSTRIP_RELEASE_ROOT:-$ROOT_DIR/release}"
 
 # Preflight all targets before building either edition.
 for edition in "${EDITIONS[@]}"; do
-  NAME="Runstrip"
-  [ "$edition" != "lite" ] || NAME="Runstrip-Lite"
+  NAME="Codex-Runstrip"
+  [ "$edition" != "lite" ] || NAME="Codex-Runstrip-Lite"
   RELEASE_DIR="$RELEASE_ROOT/$NAME-macos-$ARCH_NAME"
   ZIP_PATH="$RELEASE_DIR.zip"
   if [ -e "$RELEASE_DIR" ] || [ -e "$ZIP_PATH" ]; then
@@ -36,9 +36,9 @@ done
 
 mkdir -p "$RELEASE_ROOT"
 for edition in "${EDITIONS[@]}"; do
-  NAME="Runstrip"
-  APP_NAME="Runstrip"
-  if [ "$edition" = "lite" ]; then NAME="Runstrip-Lite"; APP_NAME="Runstrip Lite"; fi
+  NAME="Codex-Runstrip"
+  APP_NAME="Codex Runstrip"
+  if [ "$edition" = "lite" ]; then NAME="Codex-Runstrip-Lite"; APP_NAME="Codex Runstrip Lite"; fi
   RELEASE_DIR="$RELEASE_ROOT/$NAME-macos-$ARCH_NAME"
   APP_PATH="$RELEASE_DIR/$APP_NAME.app"
   ZIP_PATH="$RELEASE_DIR.zip"

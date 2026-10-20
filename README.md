@@ -1,6 +1,6 @@
 <div align="center">
 
-# Runstrip
+# Codex Runstrip
 
 ### A glanceable session strip for Codex Desktop.
 
@@ -26,7 +26,7 @@ Local session signals, right below the composer.
 
 ## English
 
-Runstrip adds a compact, clickable status strip below the Codex Desktop composer. It surfaces session activity, token totals, cache usage, and context-window occupancy without changing Codex's installed application bundle.
+Codex Runstrip adds a compact, clickable status strip below the Codex Desktop composer. It surfaces session activity, token totals, cache usage, and context-window occupancy without changing Codex's installed application bundle.
 
 ### What it shows
 
@@ -41,29 +41,31 @@ Choose one edition from [Releases](https://github.com/JaffryGao/codex-runstrip/r
 
 | Edition | ZIP filename | Unpacked app | Node.js requirement |
 | --- | --- | --- | --- |
-| Full — recommended if unsure | `Runstrip-macos-arm64.zip` | About 121 MB | Included; no separate installation |
-| Lite — for users who already have Node.js | `Runstrip-Lite-macos-arm64.zip` | About 1 MB | Install Node.js 22+ separately |
+| Full — recommended if unsure | `Codex-Runstrip-macos-arm64.zip` | About 121 MB | Included; no separate installation |
+| Lite — for users who already have Node.js | `Codex-Runstrip-Lite-macos-arm64.zip` | About 1 MB | Install Node.js 22+ separately |
 
 Sizes refer to the unpacked app; ZIP downloads are smaller. The editions provide the same status-strip features. The full edition's size comes almost entirely from its bundled Node.js runtime.
 
 1. Download one of the ZIP files above.
-2. Unzip it and move `Runstrip.app` (Full) or `Runstrip Lite.app` (Lite) to Applications.
-3. Quit ChatGPT/Codex completely, then open Runstrip.
+2. Unzip it and move `Codex Runstrip.app` (Full) or `Codex Runstrip Lite.app` (Lite) to Applications.
+3. Quit ChatGPT/Codex completely, then open Codex Runstrip.
 4. If macOS blocks the first launch, Control-click the app and choose **Open**.
+
+When upgrading from `Codex Status Bar.app` or `Runstrip.app`, use the newly named app from this package; existing installed copies are not renamed automatically.
 
 Both packages target Apple Silicon Macs. They are alternatives: launch only one edition. The app is ad-hoc signed and not notarized, so macOS may require a one-time manual confirmation.
 
 Lite supports Node.js installed via the official macOS installer, Homebrew, or nvm in its default `~/.nvm` location. It checks the Node.js version when launched from Finder. If Node.js 22+ is missing, it shows a dialog; install Node.js and reopen Lite, or use Full. Custom Node.js installation paths are not automatically detected.
 
-If Codex is already running without a debugging port, Runstrip will not force-quit it. Quit Codex and open Runstrip again. The launcher starts ChatGPT with a loopback debugging port, then attaches the status-strip injector.
+If Codex is already running without a debugging port, Codex Runstrip will not force-quit it. Quit Codex and open Codex Runstrip again. The launcher starts ChatGPT with a loopback debugging port, then attaches the status-strip injector.
 
 ### How it works
 
-Runstrip uses Chrome DevTools Protocol (CDP) to inject a small DOM overlay at runtime. It does not patch `app.asar`, modify Codex's React tree, or replace the installed app. A Node.js process reads local Codex rollout JSONL files and updates the overlay; Full bundles this runtime, while Lite uses your installed Node.js.
+Codex Runstrip uses Chrome DevTools Protocol (CDP) to inject a small DOM overlay at runtime. It does not patch `app.asar`, modify Codex's React tree, or replace the installed app. A Node.js process reads local Codex rollout JSONL files and updates the overlay; Full bundles this runtime, while Lite uses your installed Node.js.
 
 ### Data, accuracy, and privacy
 
-- Session data is read from `~/.codex/sessions`; it is not uploaded by Runstrip.
+- Session data is read from `~/.codex/sessions`; it is not uploaded by Codex Runstrip.
 - The injector connects to the local debugging endpoint. It does not expose a remote service.
 - The current implementation selects the most recently modified session file globally. With multiple active sessions, the displayed figures may belong to a different session.
 - Turns count `task_started` events. Tool steps count completed items from a defined set of tool types, not every UI action.
@@ -88,7 +90,7 @@ To create both architecture-specific editions and ZIP files:
 Use `./package-release.sh full` or `./package-release.sh lite` to package just one edition. To build a Lite app without packaging, use:
 
 ```bash
-RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Runstrip Lite" ./build.sh
+RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
 ```
 
 Full builds require Node.js 22+ on the build machine; Lite builds do not, but running Lite does. To keep previous releases, set `RUNSTRIP_RELEASE_ROOT` to a new output directory.
@@ -97,11 +99,11 @@ Build outputs are written under `dist/` or `release/`. Existing app bundles and 
 
 ### Project status
 
-Runstrip is an unofficial experiment built on runtime UI injection. Codex UI updates can change the DOM anchors and require adjustments. It is not affiliated with or endorsed by OpenAI. No software license has been selected yet.
+Codex Runstrip is an unofficial experiment built on runtime UI injection. Codex UI updates can change the DOM anchors and require adjustments. It is not affiliated with or endorsed by OpenAI. No software license has been selected yet.
 
 ## 简体中文
 
-Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点击的状态条，展示会话活动、Token 用量、缓存命中和上下文占用。它不会修改已安装的 Codex 应用包。
+Codex Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点击的状态条，展示会话活动、Token 用量、缓存命中和上下文占用。它不会修改已安装的 Codex 应用包。
 
 ### 显示内容
 
@@ -116,29 +118,31 @@ Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点击的�
 
 | 版本 | 下载文件名 | 解压后应用大小 | Node.js 要求 |
 | --- | --- | --- | --- |
-| 完整版：不确定时选这个 | `Runstrip-macos-arm64.zip` | 约 121 MB | 已内置，无需另行安装 |
-| 轻量版：适合已安装 Node.js 的用户 | `Runstrip-Lite-macos-arm64.zip` | 约 1 MB | 需自行安装 Node.js 22 或更新版本 |
+| 完整版：不确定时选这个 | `Codex-Runstrip-macos-arm64.zip` | 约 121 MB | 已内置，无需另行安装 |
+| 轻量版：适合已安装 Node.js 的用户 | `Codex-Runstrip-Lite-macos-arm64.zip` | 约 1 MB | 需自行安装 Node.js 22 或更新版本 |
 
 以上为解压后的应用大小，ZIP 下载包更小。两个版本的状态条功能相同，完整版的体积几乎全部来自内置 Node.js。
 
 1. 下载上述任一 ZIP。
-2. 解压后将 `Runstrip.app`（完整版）或 `Runstrip Lite.app`（轻量版）移入“应用程序”。
-3. 完全退出 ChatGPT/Codex，再打开 Runstrip。
+2. 解压后将 `Codex Runstrip.app`（完整版）或 `Codex Runstrip Lite.app`（轻量版）移入“应用程序”。
+3. 完全退出 ChatGPT/Codex，再打开 Codex Runstrip。
 4. 如果 macOS 阻止首次启动，按住 Control 点击应用并选择“打开”。
+
+从 `Codex Status Bar.app` 或 `Runstrip.app` 升级时，请改用新包中的应用；已安装的旧副本不会自动更名。
 
 两个安装包均面向 Apple Silicon Mac，选一个使用即可，请勿同时启动两个版本。应用使用本地临时签名且未经过 Apple 公证，首次启动时 macOS 可能要求手动确认。
 
 轻量版支持通过 Node.js 官方 macOS 安装包、Homebrew 或默认 `~/.nvm` 目录的 nvm 安装的 Node.js。双击启动时会检查版本，缺少 Node.js 22 或更新版本会弹窗说明。安装后重新打开轻量版，或直接改用完整版。自定义安装路径不会自动识别。
 
-如果 Codex 已经运行且没有调试端口，Runstrip 不会强制退出它。请先退出 Codex，再打开 Runstrip。启动器会用本机回环调试端口启动 ChatGPT，然后连接状态条注入器。
+如果 Codex 已经运行且没有调试端口，Codex Runstrip 不会强制退出它。请先退出 Codex，再打开 Codex Runstrip。启动器会用本机回环调试端口启动 ChatGPT，然后连接状态条注入器。
 
 ### 实现方式
 
-Runstrip 通过 Chrome DevTools Protocol（CDP）在运行时注入轻量 DOM 浮层，不修改 `app.asar`、不改 Codex 的 React 树，也不替换已安装的应用。Node.js 进程读取本地 Codex 会话 JSONL 文件并更新浮层；完整版内置运行时，轻量版使用本机安装的 Node.js。
+Codex Runstrip 通过 Chrome DevTools Protocol（CDP）在运行时注入轻量 DOM 浮层，不修改 `app.asar`、不改 Codex 的 React 树，也不替换已安装的应用。Node.js 进程读取本地 Codex 会话 JSONL 文件并更新浮层；完整版内置运行时，轻量版使用本机安装的 Node.js。
 
 ### 数据口径、准确性与隐私
 
-- 会话数据读取自 `~/.codex/sessions`；Runstrip 不会上传会话内容。
+- 会话数据读取自 `~/.codex/sessions`；Codex Runstrip 不会上传会话内容。
 - 注入器连接本机调试端点，不对外提供远程服务。
 - 当前实现全局选择最近修改的会话文件。多个会话同时活动时，底栏可能显示另一个会话的数据。
 - 轮次按 `task_started` 事件计数；工具步骤只统计指定工具类型的完成事件，不等同于所有 UI 操作。
@@ -163,7 +167,7 @@ Runstrip 通过 Chrome DevTools Protocol（CDP）在运行时注入轻量 DOM �
 使用 `./package-release.sh full` 或 `./package-release.sh lite` 可只打包一个版本。只构建轻量版应用：
 
 ```bash
-RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Runstrip Lite" ./build.sh
+RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
 ```
 
 构建完整版需要本机安装 Node.js 22 或更新版本；构建轻量版不需要，但运行轻量版需要。设置 `RUNSTRIP_RELEASE_ROOT` 为新目录，可保留已有发布包。
@@ -172,4 +176,4 @@ RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Runstrip Lite" ./build.sh
 
 ### 项目状态
 
-Runstrip 是基于运行时 UI 注入的非官方实验项目。Codex 更新可能改变 DOM 锚点，需要相应调整。Runstrip 与 OpenAI 无隶属关系，也未获其背书。目前尚未选择软件许可证。
+Codex Runstrip 是基于运行时 UI 注入的非官方实验项目。Codex 更新可能改变 DOM 锚点，需要相应调整。Codex Runstrip 与 OpenAI 无隶属关系，也未获其背书。目前尚未选择软件许可证。

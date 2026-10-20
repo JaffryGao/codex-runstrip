@@ -1,5 +1,5 @@
 #!/bin/bash
-# 从 src/ 组装可分享的 Runstrip.app。
+# 从 src/ 组装可分享的 Codex Runstrip.app。
 
 set -euo pipefail
 
@@ -7,17 +7,18 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$ROOT_DIR/src"
 DIST_DIR="$ROOT_DIR/dist"
 OUTPUT_DIR="${CODEX_FORK_OUTPUT_DIR:-$DIST_DIR}"
-APP_NAME="${CODEX_FORK_APP_NAME:-Runstrip}"
+EDITION="${RUNSTRIP_EDITION:-full}"
+case "$EDITION" in
+  full) DEFAULT_APP_NAME="Codex Runstrip" ;;
+  lite) DEFAULT_APP_NAME="Codex Runstrip Lite" ;;
+  *) printf '未知版本：%s（使用 full 或 lite）\n' "$EDITION" >&2; exit 1 ;;
+esac
+APP_NAME="${CODEX_FORK_APP_NAME:-$DEFAULT_APP_NAME}"
 APP_DIR="$OUTPUT_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 NODE_DIR="$RESOURCES_DIR/node"
-EDITION="${RUNSTRIP_EDITION:-full}"
-case "$EDITION" in
-  full|lite) ;;
-  *) printf '未知版本：%s（使用 full 或 lite）\n' "$EDITION" >&2; exit 1 ;;
-esac
 
 CODEX_APP="${CODEX_APP_PATH:-/Applications/ChatGPT.app}"
 ICON_SOURCE="$CODEX_APP/Contents/Resources/electron.icns"
@@ -78,7 +79,7 @@ fi
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 cp "$SRC_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
-cp "$SRC_DIR/launcher.sh" "$MACOS_DIR/Codex fork"
+cp "$SRC_DIR/launcher.sh" "$MACOS_DIR/Codex Runstrip"
 cp "$SRC_DIR/inject.js" "$RESOURCES_DIR/inject.js"
 cp "$SRC_DIR/run.mjs" "$RESOURCES_DIR/run.mjs"
 cp "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
@@ -88,9 +89,10 @@ if [ "$EDITION" = "full" ]; then
   cp "$NODE_HOME/LICENSE" "$NODE_DIR/LICENSE"
   chmod 755 "$NODE_DIR/bin/node"
 else
-  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Runstrip Lite" "$CONTENTS_DIR/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
 fi
-chmod 755 "$MACOS_DIR/Codex fork"
+chmod 755 "$MACOS_DIR/Codex Runstrip"
 
 plutil -lint "$CONTENTS_DIR/Info.plist" >/dev/null
 xattr -cr "$APP_DIR"
