@@ -27,13 +27,20 @@ if [ ! -d "$LOCKDIR" ]; then
 fi
 trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
 
-# 找一个可用的 node
+# Finder 启动不读取 shell 配置；同时查找 Homebrew、官方安装和 nvm。
 NODE=""
-for c in "$APP_DIR/node/bin/node" /opt/homebrew/bin/node /usr/local/bin/node "$(command -v node 2>/dev/null)"; do
-  [ -n "$c" ] && [ -x "$c" ] && { NODE="$c"; break; }
+for c in "$APP_DIR/node/bin/node" /opt/homebrew/bin/node /usr/local/bin/node \
+  "$HOME/.nvm/current/bin/node" "$HOME"/.nvm/versions/node/*/bin/node \
+  "$(command -v node 2>/dev/null)"; do
+  [ -n "$c" ] && [ -x "$c" ] || continue
+  if "$c" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)' >/dev/null 2>&1; then
+    NODE="$c"
+    break
+  fi
 done
 if [ -z "$NODE" ]; then
-  log "找不到 node，无法注入状态条"
+  log "找不到 Node.js 22 或更新版本，无法注入状态条"
+  osascript -e 'display alert "Runstrip 需要 Node.js 22 或更新版本" message "轻量版未内置 Node.js。请安装 Node.js 22 或更新版本（支持官方安装包、Homebrew、默认目录的 nvm），或改用内置 Node.js 的完整版 Runstrip。安装后重新打开本应用。\n\nRunstrip Lite requires Node.js 22+. Install Node.js or use the full edition with bundled Node.js." as warning' >/dev/null 2>&1
   exit 1
 fi
 
