@@ -5,7 +5,7 @@ small session-status strip below the composer.
 
 ## Install
 
-Choose one edition (same status-strip features):
+Choose one edition:
 
 | Edition | ZIP filename | Unpacked app | Node.js |
 | --- | --- | --- | --- |
@@ -14,6 +14,9 @@ Choose one edition (same status-strip features):
 
 These are unpacked sizes; ZIP downloads are smaller.
 The full edition's size is almost entirely its bundled Node.js runtime.
+Source builds can include a local BPE tokenizer; without it, live speed is unavailable,
+while usage and turn/step counts still work. Standalone builds include both Node.js
+and the tokenizer; their build and installation guide is in STANDALONE.md.
 
 1. Download one of the ZIP files above from GitHub Releases.
 2. Unzip it and move `Codex Runstrip.app` or `Codex Runstrip Lite.app` to Applications.
@@ -33,6 +36,10 @@ Custom Node.js installation paths are not automatically detected.
 Codex Runstrip reads local Codex session files from `~/.codex/sessions`. It does not
 upload session content. Some figures are approximations; see the README for
 their definitions and known limitations.
+Statistics follow the selected chat and host; ambiguous selection stays pending.
+Remote-host logs and detached chat windows are not currently supported. The main
+speed is approximate local BPE throughput; completed-turn P50/P95 use output-rate
+windows, not per-token latency. Actual server usage is shown separately in details.
 
 This release targets Apple Silicon Macs. It is ad-hoc signed and not notarized,
 so macOS may require a one-time manual confirmation on first launch.
@@ -41,7 +48,7 @@ Logs: `~/Library/Logs/Codex fork/launcher.log`.
 
 ## 简体中文安装说明
 
-请选择一个版本，两个版本的状态条功能相同：
+请选择一个版本：
 
 | 版本 | 下载文件名 | 解压后应用大小 | Node.js 要求 |
 | --- | --- | --- | --- |
@@ -49,6 +56,8 @@ Logs: `~/Library/Logs/Codex fork/launcher.log`.
 | 轻量版 | `Codex-Runstrip-Lite-macos-arm64.zip` | 约 1 MB | 需自行安装 Node.js 22 或更新版本 |
 
 以上为解压后的体积，ZIP 下载包更小。完整版体积主要来自内置 Node.js。
+源码构建可内置 BPE 分词器，缺失时实时速度不可用，用量和轮步统计仍可使用。
+Standalone 内置 Node.js 与分词器，构建和安装说明见 STANDALONE.md。
 
 1. 解压并将 `Codex Runstrip.app` 或 `Codex Runstrip Lite.app` 移入“应用程序”。
 2. 完全退出 ChatGPT/Codex，再打开 Codex Runstrip。
@@ -61,4 +70,6 @@ Logs: `~/Library/Logs/Codex fork/launcher.log`.
 自定义 Node.js 安装路径不会自动识别。
 应用未经过 Apple 公证，首次启动可能需要手动确认。
 Codex Runstrip 不会强制退出正在运行的 Codex，也不会上传会话内容。
-多会话并行时可能读取最近写入的另一个会话，部分统计为估算值。
+统计绑定当前聊天与 host，绑定有歧义时保持待统计；远端日志和分离聊天窗口暂不支持。
+主条是近似 BPE 吞吐率，结束后的 P50/P95 按输出速度窗口统计，并非逐 Token 延迟。
+服务端真实用量在详情中单独展示。
