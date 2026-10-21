@@ -8,7 +8,9 @@
   html[data-theme=light] body{background:#fafafa;color:#222}
   main{max-width:628px;margin:40px auto;padding:0 16px}h1{font-size:16px;font-weight:500}
   p{color:#8c8c93;font-size:12px;line-height:1.8}
-  .ComposerLayoutRoot{position:fixed;bottom:42px;left:50%;transform:translateX(-50%);width:min(628px,calc(100% - 32px));
+  .demo-composer-group{position:fixed;bottom:42px;left:50%;width:min(628px,calc(100% - 32px));transform:translateX(-50%)}
+  .project-selector{height:32px;padding:4px 18px;background:#303034;border-radius:12px 12px 0 0;color:#aaa}
+  .ComposerLayoutRoot{position:relative;width:100%;
     height:108px;border:1px solid #8884;border-radius:18px;padding:18px;background:#28282b}
   html[data-theme=light] .ComposerLayoutRoot{background:#fff}
   .tools{position:absolute;bottom:14px;left:18px;right:18px;display:flex;justify-content:space-between;font-size:12px;color:#92929b}
@@ -16,7 +18,10 @@
 </style>
 <main><h1>Runstrip 动态速度条</h1><p>仅供本地验收的模拟数据。下面加载实际待安装的状态栏代码。</p></main>
 <div data-app-action-sidebar-thread-row data-app-action-sidebar-thread-selected="true" data-app-action-sidebar-thread-id="local:00000000-0000-4000-8000-000000000001" data-app-action-sidebar-thread-host-id="local" data-app-action-sidebar-thread-kind="local"></div>
-<div class="ComposerLayoutRoot"><span style="color:#888890">询问任何问题</span><div class="tools"><span>＋　 GPT-6 · Medium</span><span>↑</span></div></div>
+<div class="demo-composer-group" data-codex-composer-root>
+  <div class="project-selector" data-above-composer-conversation-id="00000000-0000-4000-8000-000000000001">项目　·　本地　·　main</div>
+  <div class="ComposerLayoutRoot"><span style="color:#888890">询问任何问题</span><div class="tools"><span>＋　 GPT-6 · Medium</span><span>↑</span></div></div>
+</div>
 <script src="../src/binding.js"></script>
 <script src="../src/speed.js"></script>
 <script src="../src/inject.js"></script>
@@ -35,7 +40,7 @@
   }));
   const payload = () => ({ ...scope, turnId: turn, model: 'demo-model',
     turns: 3, steps: 8, input: 8000, cached: 6400, output: 1200, total_tokens: 9200, cache_rate: 80,
-    context_used: 8000, context_window: 200000, context_pct: 4, speed: metrics().snapshot() });
+    speed: metrics().snapshot() });
   const update = () => __codexFooter.update(payload(), { ...scope });
   function settle(tokens, start, end) {
     const id = `simulated-${++serial}`;
@@ -51,6 +56,7 @@
       const row = document.querySelector('[data-app-action-sidebar-thread-row]');
       row.setAttribute('data-app-action-sidebar-thread-id', `local:${threadId}`);
       row.setAttribute('data-app-action-sidebar-thread-host-id', hostId);
+      document.querySelector('.project-selector').setAttribute('data-above-composer-conversation-id', threadId);
       update();
     },
     history(values = [25, 27, 38, 39, 40, 42, 43, 55, 44, 41, 40, 38, 37, 39, 40, 41, 42, 43, 44, 46]) {

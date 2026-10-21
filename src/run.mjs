@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* 本机 CDP 注入；页面事件提供流式估算，选中聊天日志提供真实用量及完成态均速。 */
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,6 +24,8 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const log = (...args) => console.log(new Date().toISOString(), ...args);
 const connections = new Map();
 let stopping = false;
+let seenMainPage = false;
+let lastMainPageAt = Date.now();
 
 async function listTargets() {
   let lastError;
@@ -125,6 +127,10 @@ while (!stopping) {
     const pages = (await listTargets()).filter(target =>
       target.type === 'page' && target.url?.startsWith('app://-/index.html') && !target.url.includes('avatar-overlay'));
     if (stopping) break;
+    if (pages.length) {
+      seenMainPage = true;
+      lastMainPageAt = Date.now();
+    }
     for (const page of pages) {
       if (stopping) break;
       if (connections.has(page.id)) continue;
@@ -135,6 +141,23 @@ while (!stopping) {
         .finally(() => connections.delete(page.id));
     }
   } catch { /* Codex 未启动时静默等待。 */ }
+  // 启动阶段允许主页面稍后出现；正常连接后，宿主退出就结束，不跨应用重启常驻。
+  if (Date.now() - lastMainPageAt > (seenMainPage ? 3000 : 30_000)) {
+    log(seenMainPage ? 'Codex 已退出，停止注入器' : '等待 Codex 超时，停止注入器');
+    await shutdown();
+    break;
+  }
   await sleep(1500);
 }
 await Promise.allSettled([...connections.values()].map(connection => connection.task));
+const pidfile = process.env.RUNSTRIP_PIDFILE;
+if (pidfile) {
+  try {
+    if (readFileSync(pidfile, 'utf8').trim() === String(process.pid)) unlinkSync(pidfile);
+  } catch {}
+  try {
+    if (JSON.parse(readFileSync(`${pidfile}.json`, 'utf8')).pid === process.pid) unlinkSync(`${pidfile}.json`);
+  } catch {}
+}
+// CDP/HTTP 的底层连接不再有产品工作，避免网络库的保活句柄让进程残留。
+process.exit(0);

@@ -24,8 +24,6 @@ export class RolloutReader {
     this.model = null;
     this.turnId = null;
     this.total = null;
-    this.last = null;
-    this.window = 0;
     this.sessionId = null;
     this.metrics = new speed.UsageMetrics(this.threadId);
   }
@@ -39,15 +37,12 @@ export class RolloutReader {
     }
     if (record.type === 'token_usage_record') {
       this.total = p.thread_token_usage || this.total;
-      this.last = p.usage || this.last;
     }
     if (record.type !== 'event_msg') return;
     if (p.type === 'task_started' && p.turn_id) this.turns.add(p.turn_id);
     if (p.type === 'item_completed' && TOOL_ITEMS.has(p.item?.type) && p.item?.id) this.steps.add(p.item.id);
     if (p.type === 'token_count') {
       this.total = p.info?.total_token_usage || this.total;
-      this.last = p.info?.last_token_usage || this.last;
-      this.window = p.info?.model_context_window || this.window;
     }
   }
   read() {
@@ -86,14 +81,11 @@ export class RolloutReader {
     const input = this.total ? this.total.input_tokens ?? 0 : null;
     const cached = this.total ? this.total.cached_input_tokens ?? 0 : null;
     const output = this.total ? this.total.output_tokens ?? 0 : null;
-    const used = this.last?.input_tokens ?? null;
     return {
       hostId: 'local', threadId: this.threadId, turnId: this.turnId, model: this.model,
       turns: this.turns.size, steps: this.steps.size,
       input, cached, output, total_tokens: this.total ? input + output : null,
       cache_rate: input ? cached / input * 100 : null,
-      context_used: used, context_window: this.window,
-      context_pct: this.window && used !== null ? used / this.window * 100 : null,
       speed: this.metrics.snapshot(),
     };
   }

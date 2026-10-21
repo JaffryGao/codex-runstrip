@@ -14,7 +14,7 @@ test('standalone keeps current UI and metrics, and vendors only the required tok
   const executable = execFileSync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleExecutable', join(app, 'Contents/Info.plist')], { encoding: 'utf8' }).trim();
   accessSync(join(app, 'Contents/MacOS', executable), constants.X_OK);
   assert.deepEqual(readFileSync(join(app, 'Contents/MacOS', executable)), readFileSync(join(source, 'launcher.sh')));
-  for (const name of ['binding.js', 'speed.js', 'stats.mjs', 'inject.js', 'run.mjs', 'tokenizer.mjs']) {
+  for (const name of ['binding.js', 'speed.js', 'stats.mjs', 'inject.js', 'run.mjs', 'tokenizer.mjs', 'check-update.mjs', 'injector-process.mjs']) {
     assert.deepEqual(readFileSync(join(resources, name)), readFileSync(join(source, name)), name);
   }
   const vendor = join(resources, 'vendor/tiktoken');

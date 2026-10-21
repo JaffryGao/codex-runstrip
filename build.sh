@@ -7,13 +7,19 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SRC_DIR="$ROOT_DIR/src"
 DIST_DIR="$ROOT_DIR/dist"
 OUTPUT_DIR="${CODEX_FORK_OUTPUT_DIR:-$DIST_DIR}"
-EDITION="${RUNSTRIP_EDITION:-full}"
+EDITION="${RUNSTRIP_EDITION:-lite}"
 case "$EDITION" in
-  full|standalone) DEFAULT_APP_NAME="Codex Runstrip" ;;
-  lite) DEFAULT_APP_NAME="Codex Runstrip Lite" ;;
-  *) printf '未知版本：%s（使用 full、lite 或 standalone）\n' "$EDITION" >&2; exit 1 ;;
+  lite|standalone) DEFAULT_APP_NAME="Codex Runstrip" ;;
+  *) printf '未知版本：%s（仅支持 lite，或内部 standalone 验证构建）\n' "$EDITION" >&2; exit 1 ;;
 esac
 APP_NAME="${CODEX_FORK_APP_NAME:-$DEFAULT_APP_NAME}"
+APP_VERSION="${RUNSTRIP_VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$SRC_DIR/Info.plist")}"
+APP_VERSION="${APP_VERSION#v}"
+TARGET_ARCH="$(uname -m)"
+case "$TARGET_ARCH" in
+  arm64|x86_64) ;;
+  *) printf '不支持的 Mac 架构：%s\n' "$TARGET_ARCH" >&2; exit 1 ;;
+esac
 APP_DIR="$OUTPUT_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
@@ -26,6 +32,10 @@ NODE_SOURCE="${CODEX_FORK_NODE_PATH:-$(command -v node || true)}"
 
 if [ ! -d "$SRC_DIR" ]; then
   printf '缺少源码目录：%s\n' "$SRC_DIR" >&2
+  exit 1
+fi
+if [[ ! "$APP_VERSION" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+  printf '无效版本号：%s（请使用数字点分格式，例如 1.2.0）\n' "$APP_VERSION" >&2
   exit 1
 fi
 if [ ! -f "$ICON_SOURCE" ]; then
@@ -45,7 +55,7 @@ if [ "$EDITION" != "lite" ]; then
     exit 1
   fi
 
-  HOST_ARCH="$(uname -m)"
+  HOST_ARCH="$TARGET_ARCH"
   NODE_ARCH="$("$NODE_SOURCE" -p 'process.arch')"
   case "$HOST_ARCH:$NODE_ARCH" in
     arm64:arm64|x86_64:x64) ;;
@@ -98,7 +108,7 @@ if [ "$EDITION" = "standalone" ] || [ -n "$TOKENIZER_SOURCE" ]; then
   fi
 fi
 
-for file in Info.plist inject.js speed.js stats.mjs tokenizer.mjs binding.js launcher.sh run.mjs; do
+for file in Info.plist inject.js speed.js stats.mjs tokenizer.mjs binding.js launcher.sh run.mjs check-update.mjs injector-process.mjs; do
   if [ ! -f "$SRC_DIR/$file" ]; then
     printf '缺少源码文件：%s\n' "$SRC_DIR/$file" >&2
     exit 1
@@ -122,15 +132,21 @@ cp "$SRC_DIR/stats.mjs" "$RESOURCES_DIR/stats.mjs"
 cp "$SRC_DIR/tokenizer.mjs" "$RESOURCES_DIR/tokenizer.mjs"
 cp "$SRC_DIR/binding.js" "$RESOURCES_DIR/binding.js"
 cp "$SRC_DIR/run.mjs" "$RESOURCES_DIR/run.mjs"
+cp "$SRC_DIR/check-update.mjs" "$RESOURCES_DIR/check-update.mjs"
+cp "$SRC_DIR/injector-process.mjs" "$RESOURCES_DIR/injector-process.mjs"
 cp "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$CONTENTS_DIR/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$CONTENTS_DIR/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CodexRunstripEdition $EDITION" "$CONTENTS_DIR/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CodexRunstripArchitecture $TARGET_ARCH" "$CONTENTS_DIR/Info.plist"
 if [ "$EDITION" != "lite" ]; then
   mkdir -p "$NODE_DIR/bin"
   cp "$NODE_SOURCE" "$NODE_DIR/bin/node"
   cp "$NODE_HOME/LICENSE" "$NODE_DIR/LICENSE"
   chmod 755 "$NODE_DIR/bin/node"
 else
-  /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
-  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex Runstrip" "$CONTENTS_DIR/Info.plist"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex Runstrip" "$CONTENTS_DIR/Info.plist"
 fi
 if [ -n "$TOKENIZER_SOURCE" ]; then
   TOKENIZER_DEST="$RESOURCES_DIR/vendor/tiktoken"

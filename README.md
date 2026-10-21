@@ -2,200 +2,122 @@
 
 # Codex Runstrip
 
-### A glanceable session strip for Codex Desktop.
+**Codex 桌面端的轻量会话状态栏**
 
-Local session signals, right below the composer.
+在输入框下方查看当前聊天的轮次、工具步数、Token 用量、缓存命中和输出速度。
 
-[English](#english) · [简体中文](#简体中文) · [Download](https://github.com/JaffryGao/codex-runstrip/releases/latest)
+[下载最新版](https://github.com/JaffryGao/codex-runstrip/releases/latest) · [更新日志](CHANGELOG.md) · [English](#english)
 
 </div>
 
-<p align="center">
-  <img src="docs/images/01-token-cache.png" width="100%" alt="Token and cache details inside Codex, above the composer status strip">
-</p>
-<p align="center">
-  <img src="docs/images/02-session-stats.png" width="100%" alt="Session statistics inside Codex, with the full composer and status strip visible">
-</p>
-<p align="center">
-  <img src="docs/images/03-context-window.png" width="100%" alt="Context usage inside Codex, with the full composer and status strip visible">
-</p>
+## 界面预览
 
-<p align="center"><sub>Actual Codex Desktop screenshots · Runtime overlay, not an official built-in feature<br>Codex 客户端实机截图 · 运行时注入浮层，非官方内置功能</sub></p>
+<img src="docs/images/runstrip-speed.png" alt="Codex Runstrip 本轮 Token 流速、P50/P95 与实际响应数据" width="100%">
+
+> Codex 客户端实机截图。Runstrip 是非官方运行时浮层，不是 Codex 内置功能。
+
+<details>
+<summary>查看 Token 用量、缓存与轮次卡片</summary>
+
+**Token 用量**
+
+<img src="docs/images/runstrip-usage.png" alt="当前聊天累计、输入与输出 Token" width="100%">
+
+**缓存命中**
+
+<img src="docs/images/runstrip-cache.png" alt="缓存命中率、缓存读取与未缓存输入 Token" width="100%">
+
+**轮次与步数**
+
+<img src="docs/images/runstrip-turns.png" alt="当前聊天已启动轮次和已完成工具步数" width="100%">
+
+</details>
+
+## 下载与安装
+
+项目只提供一个轻量版，不再区分 Full/Lite，也不在应用名称中添加 Lite 后缀。下载与你的 Mac 芯片匹配的 ZIP：
+
+| 芯片 | 下载包 | 运行要求 |
+| --- | --- | --- |
+| Apple Silicon（M 系列） | [`Codex-Runstrip-macos-arm64.zip`](https://github.com/JaffryGao/codex-runstrip/releases/latest) | macOS、ChatGPT 桌面端（含 Codex）、Node.js 22 或更新版本 |
+
+目前只发布 Apple Silicon（arm64）安装包；Intel 版本暂不提供。
+
+1. 安装 Node.js 22+（支持官方 macOS 安装包、Homebrew，或默认 `~/.nvm` 下的 nvm）。
+2. 下载 ZIP、解压，将 `Codex Runstrip.app` 移入“应用程序”。
+3. 保存工作并完全退出 ChatGPT/Codex，再打开 Codex Runstrip。启动器会启动带本机回环调试端口的 Codex；不会强制退出已运行的 Codex。
+4. 若 macOS 阻止首次打开，按住 Control 点击应用并选“打开”，或按“系统设置 → 隐私与安全性”提示操作。
+
+应用为本地临时签名，未经 Apple 公证。首次启动时 macOS 可能要求手动确认。请勿同时运行多个 Runstrip 副本。日志位于 `~/Library/Logs/Codex fork/launcher.log`。
+
+## 状态栏内容
+
+- **轮次与步数：**当前聊天已启动的任务轮次、已完成的工具调用步数。
+- **Token 用量：**当前聊天日志累计输入与输出 Token。
+- **缓存：**单独展示缓存命中率、缓存读取 Token、未缓存输入 Token。
+- **流速：**单色动态波形与可观测输出的近似 Token/s；本轮结束后显示流式采样的 P50/P95。点击各板块查看详情。
+
+## 数据口径与隐私
+
+- 仅读取本机 `~/.codex/sessions` 中与当前聊天绑定的会话日志，不上传聊天内容，也不修改 Codex 安装包。
+- 优先使用活动输入框的正式会话 ID 与 host；无法唯一确认时保持待统计，不猜测。切换聊天后丢弃旧请求的迟到数据。
+- 轮次按 `task_started.turn_id` 去重；工具步数按已完成工具 item ID 去重。上下文用量由 Codex 自带指示器展示，Runstrip 不重复提供。
+- Token 总量和缓存率按当前聊天日志汇总；首次用量记录到达前显示“待统计”，不把未知当作 0。
+- 实时速度对可观测的正文与思考增量使用本机 `tiktoken 1.0.22 / o200k_base` BPE 计数。它是近似吞吐率，不是服务端精确解码速度：看不到隐藏思考和工具返回文本，客户端到达时间也不等于模型纯生成时间。没有可观测 Token 输出时不编造速度；思考、工具执行期间可能只有阶段提示。
+- P50/P95 是当前轮最近最多 500 个约 1 秒有效输出窗的吞吐率分位数，不是逐 Token 延迟。只有整轮完成/中断后才显示；不足 1 秒的尾窗不参与。
+- 服务端结算的实际输出 Token（含思考）、响应均速和历史分位数在流速详情中单独展示，不替代实时流速。重载页面后不能恢复此前的实时采样。
+- 注入器仅连接本机回环调试端点。Codex 关闭后会自动退出；新版启动会接管已确认属于 Runstrip 的旧注入器。
+- 暂不支持远端 host 的历史日志和分离聊天窗口。Codex 更新可能改变界面锚点，需随版本调整。
+
+## 自动检查更新
+
+启动后会在后台检查 GitHub 最新正式 Release。仅当版本更高且存在当前芯片对应的安装包时提示；点击后打开 Release 页面，不会自动下载或覆盖。网络异常、无更新或用户取消时保持静默。
+
+## 从源码构建与验证
+
+在安装 ChatGPT 桌面端的 macOS 上，准备 Node.js 22+、tiktoken 1.0.22 源码包及其许可证，再运行：
+
+```bash
+RUNSTRIP_TOKENIZER_SOURCE="$PWD/dependencies/tiktoken-1.0.22" \
+RUNSTRIP_TOKENIZER_LICENSE="$PWD/dependencies/tiktoken-LICENSE" \
+./package-release.sh
+```
+
+默认只构建一个无 Lite 后缀的轻量包。可用 `RUNSTRIP_RELEASE_ROOT` 指定新的输出目录，已有构建不会被覆盖。独立验证构建说明见 [STANDALONE.md](STANDALONE.md)（非公开发行版本）。
+
+运行测试：
+
+```bash
+RUNSTRIP_TOKENIZER_PATH="$PWD/dependencies/tiktoken-1.0.22" \
+node --test test/*.test.mjs
+```
+
+公开发行包验证可设置 `RUNSTRIP_PUBLIC_TEST_APP` 指向已构建的 `.app`；内部独立验证包使用 `RUNSTRIP_TEST_APP`，见 [STANDALONE.md](STANDALONE.md)。`test/preview.html` 使用合成数据进行 UI 回归。
+
+## 项目说明
+
+Codex Runstrip 是基于运行时 UI 注入的非官方实验项目，与 OpenAI 无隶属关系，也未获其背书。项目尚未选择软件许可证；第三方组件保留各自许可证。
+
+感谢 [@LospAgile](https://github.com/LospAgile) 在 [PR #2](https://github.com/JaffryGao/codex-runstrip/pull/2) 中提供的会话绑定、BPE 流式统计与回归测试。
 
 ---
 
 ## English
 
-Codex Runstrip adds a compact, clickable status strip below the Codex Desktop composer. It surfaces session activity, token totals, cache usage, and context-window occupancy without changing Codex's installed application bundle.
-
-### What it shows
-
-- **Output speed:** an output-driven rectangle, recent BPE Token/s, and current-turn P50/P95 after completion.
-- **Session activity:** deduplicated task turns and completed tool steps for the currently selected chat.
-- **Token usage:** cumulative input and output tokens, plus the aggregate cache-hit ratio for the selected session log.
-- **Context window:** the latest recorded input size against the reported context window.
-- **Details on demand:** click a segment to open its breakdown.
+Codex Runstrip is a lightweight, unofficial session status strip for the Codex desktop app. It shows turns and completed tool steps, token usage, cache metrics, and approximate output throughput below the composer.
 
 ### Install
 
-Choose one edition from [Releases](https://github.com/JaffryGao/codex-runstrip/releases/latest):
+There is one public edition, with no “Lite” suffix in the app name. Download the ZIP matching your Mac architecture from [GitHub Releases](https://github.com/JaffryGao/codex-runstrip/releases/latest). Node.js 22+, ChatGPT Desktop with Codex, and macOS are required. Install Node.js using the official macOS installer, Homebrew, or nvm in its default `~/.nvm` directory.
 
-| Edition | ZIP filename | Unpacked app | Node.js requirement |
-| --- | --- | --- | --- |
-| Full — recommended if unsure | `Codex-Runstrip-macos-arm64.zip` | About 121 MB | Included; no separate installation |
-| Lite — for users who already have Node.js | `Codex-Runstrip-Lite-macos-arm64.zip` | About 1 MB | Install Node.js 22+ separately |
+Unzip and move `Codex Runstrip.app` to Applications. Save your work, quit ChatGPT/Codex completely, then open Runstrip. It launches Codex with a loopback-only debugging port and does not force-quit an already running instance. The app is ad-hoc signed, not notarized; macOS may require a one-time manual confirmation.
 
-Sizes describe the existing release packages; ZIP downloads are smaller. The full edition's size comes almost entirely from its bundled Node.js runtime. The enhancements described here are source changes, not a new published release.
+### Metrics and privacy
 
-For a self-contained build with Node.js and the BPE tokenizer included, see [Standalone](STANDALONE.md). Full/Lite source builds can also bundle the tokenizer; without it, speed stays unavailable rather than falling back to character counts. Usage, context and turn/step counts remain available.
+Runstrip reads only the selected local chat's session log under `~/.codex/sessions`; it does not upload chat content or modify the Codex app bundle. Ambiguous chat/host binding stays pending. Context occupancy is left to Codex's built-in indicator.
 
-1. Download one of the ZIP files above.
-2. Unzip it and move `Codex Runstrip.app` (Full) or `Codex Runstrip Lite.app` (Lite) to Applications.
-3. Quit ChatGPT/Codex completely, then open Codex Runstrip.
-4. If macOS blocks the first launch, Control-click the app and choose **Open**.
+Live Token/s is approximate local BPE throughput for observable assistant/reasoning output, not exact server decoding speed. Hidden reasoning, tool-result text, and periods without visible Token deltas cannot be measured. P50/P95 are current-turn output-window throughput percentiles, not per-token latency. Actual server usage is shown separately.
 
-When upgrading from `Codex Status Bar.app` or `Runstrip.app`, use the newly named app from this package; existing installed copies are not renamed automatically.
+After startup, Runstrip silently checks the latest stable Release. It only prompts for a newer matching architecture; confirming opens the Release page without downloading or replacing the app. Network failures are ignored. The injector exits shortly after Codex closes.
 
-Both packages target Apple Silicon Macs. They are alternatives: launch only one edition. The app is ad-hoc signed and not notarized, so macOS may require a one-time manual confirmation.
-
-Lite supports Node.js installed via the official macOS installer, Homebrew, or nvm in its default `~/.nvm` location. It checks the Node.js version when launched from Finder. If Node.js 22+ is missing, it shows a dialog; install Node.js and reopen Lite, or use Full. Custom Node.js installation paths are not automatically detected.
-
-If Codex is already running without a debugging port, Codex Runstrip will not force-quit it. Quit Codex and open Codex Runstrip again. The launcher starts ChatGPT with a loopback debugging port, then attaches the status-strip injector.
-
-### How it works
-
-Codex Runstrip uses Chrome DevTools Protocol (CDP) to inject a small DOM overlay at runtime. It does not patch `app.asar`, modify Codex's React tree, or replace the installed app. A Node.js process reads local Codex rollout JSONL files and updates the overlay; Full bundles this runtime, while Lite uses your installed Node.js.
-
-### Data, accuracy, and privacy
-
-- Session data is read from `~/.codex/sessions`; it is not uploaded by Codex Runstrip.
-- The injector connects to the local debugging endpoint. It does not expose a remote service.
-- Each page binds to the active composer's formal conversation ID and host. An unambiguous selected-sidebar entry is a fallback. Temporary IDs and ambiguous selection stay pending; results arriving after a chat/host switch are discarded, including empty results.
-- Local log statistics use only the selected thread's file. Remote-host logs are not read. Detached chat windows are not yet attached by the injector.
-- Turns count unique `task_started.turn_id` values. Steps count unique completed item IDs for the supported tool types in `src/stats.mjs`, not text, reasoning, pending calls or every UI action.
-- Token totals and cache ratio are aggregated for the selected session log. Cache ratio is not split by model.
-- Context occupancy uses the latest recorded input size and context-window value. New chats show pending usage/cache/context until usage is recorded; turns and steps can appear earlier.
-- The main `≈ tok/s` counts observable assistant-text and reasoning deltas with local `tiktoken 1.0.22 / o200k_base` BPE. It uses about two seconds of arrival-time samples, with a first-chunk baseline and at least one second of warmup. Hidden reasoning and tool-result text are not counted; the server tokenizer can differ. This is not exact server decoding speed.
-- The rectangle changes only with output. Pauses and completion preserve its position and last rate. Gaps over two seconds and tool boundaries start a fresh speed window. Main-strip P50/P95 use nearest-rank percentiles of the current turn's latest 500 approximately one-second output windows; a short trailing window is excluded. These are throughput percentiles, not per-token latency percentiles.
-- Details show actual server `output_tokens` (including reasoning), response rate from observed timing, and separate same-model history. Missing or ambiguous timing is omitted; these values do not replace the main stream rate. Reloading the page cannot recover earlier live samples.
-- Stream text is held in memory for tokenization and cleared at segment completion. Missing/incompatible tokenizers or oversized segments produce no fabricated numeric fallback.
-
-### Build from source
-
-Requirements: macOS, ChatGPT Desktop with Codex, and Node.js 22 or newer for building.
-
-```bash
-./build.sh
-```
-
-To create both architecture-specific editions and ZIP files:
-
-```bash
-./package-release.sh
-```
-
-Use `./package-release.sh full` or `./package-release.sh lite` to package just one edition. To build a Lite app without packaging, use:
-
-```bash
-RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
-```
-
-Full builds require Node.js 22+ on the build machine; Lite builds do not, but running Lite does. To keep previous releases, set `RUNSTRIP_RELEASE_ROOT` to a new output directory.
-
-To include the tokenizer in any edition, set `RUNSTRIP_TOKENIZER_SOURCE` to an extracted tiktoken **1.0.22** package and `RUNSTRIP_TOKENIZER_LICENSE` to its license file before building. Standalone requires these inputs and a self-contained Node runtime; it rejects external dynamic-library dependencies and records Node's minimum macOS version. See [build inputs and commands](STANDALONE.md#build-from-source).
-
-Run the synthetic regression suite with `node --test test/*.test.mjs`. Set `RUNSTRIP_TOKENIZER_PATH` to enable real BPE integration tests; set `RUNSTRIP_TEST_APP` to a built standalone `.app` to enable macOS bundle/signature/isolation tests. Otherwise those integration tests are explicitly skipped. `test/preview.html` is a local UI fixture with synthetic data; live speed needs `createTokenizerScript().script` loaded before `src/inject.js`.
-
-Build outputs are written under `dist/` or `release/`. Existing app bundles and release targets are not overwritten by default.
-
-### Project status
-
-Codex Runstrip is an unofficial experiment built on runtime UI injection. Codex UI updates can change the DOM anchors and require adjustments. It is not affiliated with or endorsed by OpenAI. No software license has been selected yet.
-
-## 简体中文
-
-Codex Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点击的状态条，展示会话活动、Token 用量、缓存命中和上下文占用。它不会修改已安装的 Codex 应用包。
-
-### 显示内容
-
-- **输出速度：**随输出变化的矩形、近期 BPE Token/s，整轮完成后的 P50/P95。
-- **会话活动：**当前聊天去重后的任务轮次和已完成工具步数。
-- **Token 用量：**所选会话日志中的累计输入/输出 Token 和总体缓存命中率。
-- **上下文窗口：**最近记录的输入量及其占上下文窗口的比例。
-- **按需查看：**点击状态条各分区查看明细。
-
-### 安装
-
-在 [Releases](https://github.com/JaffryGao/codex-runstrip/releases/latest) 中选择一个版本：
-
-| 版本 | 下载文件名 | 解压后应用大小 | Node.js 要求 |
-| --- | --- | --- | --- |
-| 完整版：不确定时选这个 | `Codex-Runstrip-macos-arm64.zip` | 约 121 MB | 已内置，无需另行安装 |
-| 轻量版：适合已安装 Node.js 的用户 | `Codex-Runstrip-Lite-macos-arm64.zip` | 约 1 MB | 需自行安装 Node.js 22 或更新版本 |
-
-以上为已有发布包的解压后体积，ZIP 下载包更小；完整版的体积几乎全部来自内置 Node.js。本文增强功能是源码改动，尚未作为新版本发布。
-
-需要内置 Node.js 与 BPE 分词器的独立包，参见 [Standalone](STANDALONE.md)。Full/Lite 源码构建也可内置分词器；缺失时速度保持不可用，不回退到字符换算，用量、上下文和轮步统计仍可使用。
-
-1. 下载上述任一 ZIP。
-2. 解压后将 `Codex Runstrip.app`（完整版）或 `Codex Runstrip Lite.app`（轻量版）移入“应用程序”。
-3. 完全退出 ChatGPT/Codex，再打开 Codex Runstrip。
-4. 如果 macOS 阻止首次启动，按住 Control 点击应用并选择“打开”。
-
-从 `Codex Status Bar.app` 或 `Runstrip.app` 升级时，请改用新包中的应用；已安装的旧副本不会自动更名。
-
-两个安装包均面向 Apple Silicon Mac，选一个使用即可，请勿同时启动两个版本。应用使用本地临时签名且未经过 Apple 公证，首次启动时 macOS 可能要求手动确认。
-
-轻量版支持通过 Node.js 官方 macOS 安装包、Homebrew 或默认 `~/.nvm` 目录的 nvm 安装的 Node.js。双击启动时会检查版本，缺少 Node.js 22 或更新版本会弹窗说明。安装后重新打开轻量版，或直接改用完整版。自定义安装路径不会自动识别。
-
-如果 Codex 已经运行且没有调试端口，Codex Runstrip 不会强制退出它。请先退出 Codex，再打开 Codex Runstrip。启动器会用本机回环调试端口启动 ChatGPT，然后连接状态条注入器。
-
-### 实现方式
-
-Codex Runstrip 通过 Chrome DevTools Protocol（CDP）在运行时注入轻量 DOM 浮层，不修改 `app.asar`、不改 Codex 的 React 树，也不替换已安装的应用。Node.js 进程读取本地 Codex 会话 JSONL 文件并更新浮层；完整版内置运行时，轻量版使用本机安装的 Node.js。
-
-### 数据口径、准确性与隐私
-
-- 会话数据读取自 `~/.codex/sessions`；Codex Runstrip 不会上传会话内容。
-- 注入器连接本机调试端点，不对外提供远程服务。
-- 每个页面优先绑定活动输入区的正式会话 ID 与 host；唯一且明确的侧栏选中项作为回退。临时 ID 或歧义绑定保持待统计；切换聊天/host 后拒绝旧请求的迟到结果，包括空结果。
-- 本地日志只读取选中聊天对应的文件，暂不读取远端 host 日志。注入器尚未连接分离出来的聊天窗口。
-- 轮次按 `task_started.turn_id` 去重；步数按 `src/stats.mjs` 支持的已完成工具 item ID 去重，正文、思考和执行中的工具不计步，并非所有 UI 操作。
-- Token 总量和缓存命中率按所选会话日志汇总，缓存率没有按模型拆分。
-- 上下文使用最近已结算请求的输入量与窗口。新聊天尚未有 usage 时，用量/缓存/上下文显示待统计，轮步数可提前显示。
-- 主条 `≈ tok/s` 用本机 `tiktoken 1.0.22 / o200k_base` 对可观测正文和思考增量做 BPE 分词，按最近约 2 秒的到达窗口统计；首块作基线，至少预热 1 秒。不含隐藏思考或工具返回文本，服务端词表也可能不同，因此不是服务端精确解码速度。
-- 矩形只随输出变化，停流和完成后保留位置与最后速度。超过 2 秒的无输出间隔及工具边界重新预热。主条 P50/P95 是本轮最近 500 个约 1 秒有效输出窗的最近秩分位数，不足 1 秒的尾窗不参与；它们是吞吐率分位数，不是逐 Token 延迟分位数。
-- 详情单独展示服务端真实 `output_tokens`（含思考）、按可观测时长计算的响应速度和同模型历史；时长缺失或配对不明确的样本不计速度，也不替换主条流式数值。重载页面无法恢复之前的实时采样。
-- 流式文本仅在内存中供分词使用，分段结束后清除；分词器缺失、不兼容或片段过大时不编造数值。
-
-### 从源码构建
-
-构建要求：macOS、安装了 Codex 的 ChatGPT 桌面端，以及 Node.js 22 或更新版本。
-
-```bash
-./build.sh
-```
-
-同时生成当前架构的完整版、轻量版 `.app` 和 ZIP：
-
-```bash
-./package-release.sh
-```
-
-使用 `./package-release.sh full` 或 `./package-release.sh lite` 可只打包一个版本。只构建轻量版应用：
-
-```bash
-RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
-```
-
-构建完整版需要本机安装 Node.js 22 或更新版本；构建轻量版不需要，但运行轻量版需要。设置 `RUNSTRIP_RELEASE_ROOT` 为新目录，可保留已有发布包。
-
-各版本均可在构建时设置 `RUNSTRIP_TOKENIZER_SOURCE` 指向解压的 tiktoken **1.0.22**，并设置 `RUNSTRIP_TOKENIZER_LICENSE` 指向其许可证。Standalone 强制要求这两项及自包含 Node 运行时，拒绝外部动态库依赖，并写入 Node 所需的最低 macOS 版本，详见 [构建输入与命令](STANDALONE.md#build-from-source)。
-
-运行 `node --test test/*.test.mjs` 验证合成事件回归。设置 `RUNSTRIP_TOKENIZER_PATH` 可启用真实 BPE 集成测试；设置 `RUNSTRIP_TEST_APP` 指向构建后的独立版 `.app` 可启用 macOS 包结构、签名与隔离测试；未配置时明确跳过对应测试。`test/preview.html` 是模拟数据 UI 页面，实时分词需先加载 `createTokenizerScript().script` 再加载 `src/inject.js`。
-
-构建产物分别放在 `dist/` 或 `release/`。默认不会覆盖已存在的应用包或发布目标。
-
-### 项目状态
-
-Codex Runstrip 是基于运行时 UI 注入的非官方实验项目。Codex 更新可能改变 DOM 锚点，需要相应调整。Codex Runstrip 与 OpenAI 无隶属关系，也未获其背书。目前尚未选择软件许可证。
+See [CHANGELOG](CHANGELOG.md) for release notes. Run tests with `node --test test/*.test.mjs`. Codex Runstrip is unofficial and not affiliated with or endorsed by OpenAI. No software license has been selected.

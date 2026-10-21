@@ -33,8 +33,8 @@ test('incremental parser preserves partial lines and UTF-8; repeats do not infla
   const reader = new RolloutReader(path, idA);
   const first = reader.read();
   assert.equal(first.cache_rate, 25);
-  assert.equal(first.context_used, 50);
-  assert.equal(first.context_pct, 5);
+  assert.equal('context_used' in first, false);
+  assert.equal('context_pct' in first, false);
   const context = Buffer.from(row('turn_context', { turn_id: 'turn-a', model: '模型' }));
   const split = context.indexOf(Buffer.from('模型')) + 1;
   appendFileSync(path, context.subarray(0, split));
@@ -75,7 +75,7 @@ test('first-turn counters arrive before usage without inventing cache or context
   const initial = reader.read();
   assert.equal(initial.turns, 1);
   assert.equal(initial.steps, 0);
-  for (const key of ['input', 'cached', 'output', 'total_tokens', 'cache_rate', 'context_used', 'context_pct']) {
+  for (const key of ['input', 'cached', 'output', 'total_tokens', 'cache_rate']) {
     assert.equal(initial[key], null, key);
   }
   appendFileSync(path, started + tool + tool
@@ -107,12 +107,11 @@ test('early counters remain isolated to the selected local session', t => {
   writeFileSync(unverified, started);
   assert.equal(new RolloutReader(unverified, idA).read(), null);
 });
-test('missing last usage or window is unknown, not inferred from cumulative totals', t => {
+test('cumulative usage remains available without exporting context occupancy', t => {
   const path = join(fixture(t), 'rollout.jsonl');
   writeFileSync(path, row('token_usage_record', { thread_token_usage: { input_tokens: 900 } }));
   const stats = new RolloutReader(path, idA).read();
-  assert.equal(stats.context_used, null);
-  assert.equal(stats.context_pct, null);
+  for (const key of ['context_used', 'context_window', 'context_pct']) assert.equal(key in stats, false);
   assert.equal(stats.total_tokens, 900);
 });
 

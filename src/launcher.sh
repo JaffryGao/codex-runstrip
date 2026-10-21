@@ -1,6 +1,6 @@
 #!/bin/bash
 # Codex Runstrip —— 双击即用：以调试模式启动 Codex，并挂上底部状态条。
-# 全程静默，不弹任何窗口；状态写入日志。
+# 启动静默；后台发现新版时询问是否查看 Release，状态写入日志。
 
 set -u
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin
@@ -16,16 +16,24 @@ log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >>"$LOG"; }
 # 防止重复运行（macOS 无 flock，用 mkdir 原子性做锁）
 LOCKDIR="$STATE_DIR/launcher.lock.d"
 if ! mkdir "$LOCKDIR" 2>/dev/null; then
-  # 锁已存在：如果持有者已不在（超过 60 秒未更新），视为陈旧锁
-  if [ -n "$(find "$LOCKDIR" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
-    rmdir "$LOCKDIR" 2>/dev/null && mkdir "$LOCKDIR" 2>/dev/null
+  OWNER=$(cat "$LOCKDIR/pid" 2>/dev/null || true)
+  if [[ "$OWNER" =~ ^[0-9]+$ ]] && kill -0 "$OWNER" 2>/dev/null; then
+    log "已有启动器在运行，退出"
+    exit 0
+  fi
+  if [[ "$OWNER" =~ ^[0-9]+$ ]]; then
+    rm -f "$LOCKDIR/pid"
+  elif [ -z "$(find "$LOCKDIR" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
+    log "启动锁正在建立，退出"
+    exit 0
+  fi
+  if ! rmdir "$LOCKDIR" 2>/dev/null || ! mkdir "$LOCKDIR" 2>/dev/null; then
+    log "已有启动器在运行，退出"
+    exit 0
   fi
 fi
-if [ ! -d "$LOCKDIR" ]; then
-  log "已有启动器在运行，退出"
-  exit 0
-fi
-trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
+echo $$ >"$LOCKDIR/pid"
+trap 'rm -f "$LOCKDIR/pid"; rmdir "$LOCKDIR" 2>/dev/null' EXIT
 
 # Finder 启动不读取 shell 配置；同时查找 Homebrew、官方安装和 nvm。
 NODE=""
@@ -40,7 +48,7 @@ for c in "$APP_DIR/node/bin/node" /opt/homebrew/bin/node /usr/local/bin/node \
 done
 if [ -z "$NODE" ]; then
   log "找不到 Node.js 22 或更新版本，无法注入状态条"
-  osascript -e 'display alert "Codex Runstrip 需要 Node.js 22 或更新版本" message "轻量版未内置 Node.js。请安装 Node.js 22 或更新版本（支持官方安装包、Homebrew、默认目录的 nvm），或改用内置 Node.js 的完整版 Codex Runstrip。安装后重新打开本应用。\n\nCodex Runstrip Lite requires Node.js 22+. Install Node.js or use the full edition with bundled Node.js." as warning' >/dev/null 2>&1
+  osascript -e 'display alert "Codex Runstrip 需要 Node.js 22 或更新版本" message "本应用不内置 Node.js。请安装 Node.js 22 或更新版本（支持官方安装包、Homebrew、默认目录的 nvm），然后重新打开本应用。\n\nCodex Runstrip requires Node.js 22+. Install Node.js and reopen the app." as warning' >/dev/null 2>&1
   exit 1
 fi
 
@@ -50,6 +58,15 @@ if [ ! -d "$CODEX_APP" ]; then
   log "找不到 ChatGPT.app"
   exit 1
 fi
+
+APP_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_DIR/../Info.plist" 2>/dev/null || true)
+APP_EDITION=$(/usr/libexec/PlistBuddy -c 'Print :CodexRunstripEdition' "$APP_DIR/../Info.plist" 2>/dev/null || true)
+APP_ARCH=$(/usr/libexec/PlistBuddy -c 'Print :CodexRunstripArchitecture' "$APP_DIR/../Info.plist" 2>/dev/null || true)
+start_update_check() {
+  if [ -n "$APP_VERSION" ] && [ -n "$APP_EDITION" ] && [ -n "$APP_ARCH" ] && [ -f "$APP_DIR/check-update.mjs" ]; then
+    nohup "$NODE" "$APP_DIR/check-update.mjs" "$APP_VERSION" "$APP_EDITION" "$APP_ARCH" >/dev/null 2>&1 </dev/null &
+  fi
+}
 
 if [ -n "${CODEX_FORK_PORTS:-}" ]; then read -r -a PORTS <<< "$CODEX_FORK_PORTS"; else PORTS=(9222 9223 9224 9225); fi
 
@@ -78,6 +95,7 @@ done
 # 2) Codex 在跑但没开端口 —— 静默记录，不打断当前会话
 if [ -z "${PORT:-}" ] && codex_running; then
   log "Codex 正在运行但没有调试端口；本次不做任何改动（不会重启你的 Codex）"
+  start_update_check
   exit 0
 fi
 
@@ -101,18 +119,10 @@ if [ -z "${PORT:-}" ]; then
   log "Codex 已就绪 :$PORT"
 fi
 
-# 4) 注入器：已在跑就复用（按端口区分）
+# 4) 只复用同一源码版本；接管已确认属于本产品的旧进程。
 PIDFILE="$STATE_DIR/injector-$PORT.pid"
-if [ -f "$PIDFILE" ]; then
-  OLD=$(cat "$PIDFILE" 2>/dev/null)
-  if [ -n "$OLD" ] && kill -0 "$OLD" 2>/dev/null; then
-    log "注入器已在运行（pid ${OLD}），复用"
-    exit 0
-  fi
+if ! "$NODE" "$APP_DIR/injector-process.mjs" "$APP_DIR" "$NODE" "$PORT" "$PIDFILE" "$LOG" >>"$LOG" 2>&1; then
+  exit 1
 fi
-
-log "启动注入器（端口 ${PORT}）"
-nohup "$NODE" "$APP_DIR/run.mjs" --port "$PORT" >>"$LOG" 2>&1 &
-echo $! >"$PIDFILE"
-log "注入器已启动（pid $(cat "$PIDFILE")）"
+start_update_check
 exit 0

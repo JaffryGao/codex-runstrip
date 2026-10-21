@@ -7,6 +7,8 @@ release/
 outputs/
 work/
 dependencies/
+node_modules/
+.playwright-cli/
 
 # Local runtime state
 *.log
