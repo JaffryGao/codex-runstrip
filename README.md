@@ -6,7 +6,7 @@
 
 在输入框下方查看当前聊天的轮次、工具步数、Token 用量、缓存命中和输出速度。
 
-[下载最新版](https://github.com/JaffryGao/codex-runstrip/releases/latest) · [更新日志](CHANGELOG.md) · [English](#english)
+[下载最新版](https://github.com/JaffryGao/codex-runstrip/releases/latest) · [更新日志](CHANGELOG.md) · [English](README.en.md)
 
 </div>
 
@@ -52,10 +52,10 @@
 
 ## 状态栏内容
 
-- **轮次与步数：**当前聊天已启动的任务轮次、已完成的工具调用步数。
-- **Token 用量：**当前聊天日志累计输入与输出 Token。
-- **缓存：**单独展示缓存命中率、缓存读取 Token、未缓存输入 Token。
-- **流速：**单色动态波形与可观测输出的近似 Token/s；本轮结束后显示流式采样的 P50/P95。点击各板块查看详情。
+- **轮次与步数**：当前聊天已启动的任务轮次、已完成的工具调用步数。
+- **Token 用量**：当前聊天日志累计输入与输出 Token。
+- **缓存**：单独展示缓存命中率、缓存读取 Token、未缓存输入 Token。
+- **流速**：单色动态波形与可观测输出的近似 Token/s；本轮结束后显示流式采样的 P50/P95。点击各板块查看详情。
 
 ## 数据口径与隐私
 
@@ -104,20 +104,4 @@ Codex Runstrip 是基于运行时 UI 注入的非官方实验项目，与 OpenAI
 
 ## English
 
-Codex Runstrip is a lightweight, unofficial session status strip for the Codex desktop app. It shows turns and completed tool steps, token usage, cache metrics, and approximate output throughput below the composer.
-
-### Install
-
-There is one public edition, with no “Lite” suffix in the app name. Download the ZIP matching your Mac architecture from [GitHub Releases](https://github.com/JaffryGao/codex-runstrip/releases/latest). Node.js 22+, ChatGPT Desktop with Codex, and macOS are required. Install Node.js using the official macOS installer, Homebrew, or nvm in its default `~/.nvm` directory.
-
-Unzip and move `Codex Runstrip.app` to Applications. Save your work, quit ChatGPT/Codex completely, then open Runstrip. It launches Codex with a loopback-only debugging port and does not force-quit an already running instance. The app is ad-hoc signed, not notarized; macOS may require a one-time manual confirmation.
-
-### Metrics and privacy
-
-Runstrip reads only the selected local chat's session log under `~/.codex/sessions`; it does not upload chat content or modify the Codex app bundle. Ambiguous chat/host binding stays pending. Context occupancy is left to Codex's built-in indicator.
-
-Live Token/s is approximate local BPE throughput for observable assistant/reasoning output, not exact server decoding speed. Hidden reasoning, tool-result text, and periods without visible Token deltas cannot be measured. P50/P95 are current-turn output-window throughput percentiles, not per-token latency. Actual server usage is shown separately.
-
-After startup, Runstrip silently checks the latest stable Release. It only prompts for a newer matching architecture; confirming opens the Release page without downloading or replacing the app. Network failures are ignored. The injector exits shortly after Codex closes.
-
-See [CHANGELOG](CHANGELOG.md) for release notes. Run tests with `node --test test/*.test.mjs`. Codex Runstrip is unofficial and not affiliated with or endorsed by OpenAI. No software license has been selected.
+The complete English documentation is available in [README.en.md](README.en.md).
