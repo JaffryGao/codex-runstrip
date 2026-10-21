@@ -6,6 +6,7 @@ fixed/
 release/
 outputs/
 work/
+dependencies/
 
 # Local runtime state
 *.log

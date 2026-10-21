@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Runstrip 界面验收 · 模拟数据</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#212124;color:#ddd;font:14px -apple-system,"PingFang SC",sans-serif}
+  html[data-theme=light] body{background:#fafafa;color:#222}
+  main{max-width:628px;margin:40px auto;padding:0 16px}h1{font-size:16px;font-weight:500}
+  p{color:#8c8c93;font-size:12px;line-height:1.8}
+  .ComposerLayoutRoot{position:fixed;bottom:42px;left:50%;transform:translateX(-50%);width:min(628px,calc(100% - 32px));
+    height:108px;border:1px solid #8884;border-radius:18px;padding:18px;background:#28282b}
+  html[data-theme=light] .ComposerLayoutRoot{background:#fff}
+  .tools{position:absolute;bottom:14px;left:18px;right:18px;display:flex;justify-content:space-between;font-size:12px;color:#92929b}
+  [data-app-action-sidebar-thread-row]{display:none}
+</style>
+<main><h1>Runstrip 动态速度条</h1><p>仅供本地验收的模拟数据。下面加载实际待安装的状态栏代码。</p></main>
+<div data-app-action-sidebar-thread-row data-app-action-sidebar-thread-selected="true" data-app-action-sidebar-thread-id="local:00000000-0000-4000-8000-000000000001" data-app-action-sidebar-thread-host-id="local" data-app-action-sidebar-thread-kind="local"></div>
+<div class="ComposerLayoutRoot"><span style="color:#888890">询问任何问题</span><div class="tools"><span>＋　 GPT-6 · Medium</span><span>↑</span></div></div>
+<script src="../src/binding.js"></script>
+<script src="../src/speed.js"></script>
+<script src="../src/inject.js"></script>
+<script>
+  let serial = 0, startedAt = 0, turn = 'demo-turn';
+  let scope = { hostId: 'local', threadId: '00000000-0000-4000-8000-000000000001' };
+  const histories = new Map();
+  const metrics = () => {
+    const key = JSON.stringify(scope);
+    if (!histories.has(key)) histories.set(key, new __RunstripSpeed.UsageMetrics(scope.threadId));
+    return histories.get(key);
+  };
+  const rec = (type, payload, ms) => metrics().consume({ type, payload, timestamp: new Date(ms).toISOString() });
+  const emit = (method, params) => window.dispatchEvent(new MessageEvent('message', {
+    data: { type: 'mcp-notification', method, hostId: scope.hostId, params: { threadId: scope.threadId, turnId: turn, ...params } },
+  }));
+  const payload = () => ({ ...scope, turnId: turn, model: 'demo-model',
+    turns: 3, steps: 8, input: 8000, cached: 6400, output: 1200, total_tokens: 9200, cache_rate: 80,
+    context_used: 8000, context_window: 200000, context_pct: 4, speed: metrics().snapshot() });
+  const update = () => __codexFooter.update(payload(), { ...scope });
+  function settle(tokens, start, end) {
+    const id = `simulated-${++serial}`;
+    rec('event_msg', { type: 'item_completed', turn_id: turn, started_at_ms: start,
+      completed_at_ms: end - 10, item: { id, type: 'Reasoning' } }, end - 10);
+    rec('token_usage_record', { turn_id: turn, response_id: id, usage: { output_tokens: tokens, reasoning_output_tokens: Math.floor(tokens / 2) } }, end);
+  }
+  window.demo = {
+    payload,
+    select(threadId, hostId = 'local') {
+      scope = { hostId, threadId };
+      turn = `demo-turn-${++serial}`;
+      const row = document.querySelector('[data-app-action-sidebar-thread-row]');
+      row.setAttribute('data-app-action-sidebar-thread-id', `local:${threadId}`);
+      row.setAttribute('data-app-action-sidebar-thread-host-id', hostId);
+      update();
+    },
+    history(values = [25, 27, 38, 39, 40, 42, 43, 55, 44, 41, 40, 38, 37, 39, 40, 41, 42, 43, 44, 46]) {
+      const base = Date.now() - 120000;
+      rec('turn_context', { turn_id: turn, model: 'demo-model' }, base);
+      values.forEach((tokens, i) => settle(tokens, base + i * 2000 + 100, base + i * 2000 + 1100));
+      rec('event_msg', { type: 'task_complete', turn_id: turn }, base + values.length * 2000);
+      update();
+    },
+    stream() {
+      turn = `demo-turn-${++serial}`;
+      startedAt = Date.now();
+      rec('turn_context', { turn_id: turn, model: 'demo-model' }, startedAt);
+      update();
+      emit('turn/started', {});
+      emit('item/started', { item: { id: 'streaming', type: 'reasoning' } });
+    },
+    chunk(chars = 40) { emit('item/reasoning/summaryTextDelta', { itemId: 'streaming', delta: '测'.repeat(chars) }); },
+    phase(type) { emit('item/started', { item: { id: `demo-${++serial}`, type } }); },
+    finish() {
+      const end = Date.now();
+      settle(Math.round((end - startedAt) / 1000 * 53), startedAt, end);
+      rec('event_msg', { type: 'task_complete', turn_id: turn }, end);
+      emit('turn/completed', { turn: { id: turn, status: 'completed' } });
+      update();
+    },
+  };
+</script>
+</html>

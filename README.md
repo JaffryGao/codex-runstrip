@@ -30,7 +30,8 @@ Codex Runstrip adds a compact, clickable status strip below the Codex Desktop co
 
 ### What it shows
 
-- **Session activity:** task turns, selected tool steps, and an approximate output rate.
+- **Output speed:** an output-driven rectangle, recent BPE Token/s, and current-turn P50/P95 after completion.
+- **Session activity:** deduplicated task turns and completed tool steps for the currently selected chat.
 - **Token usage:** cumulative input and output tokens, plus the aggregate cache-hit ratio for the selected session log.
 - **Context window:** the latest recorded input size against the reported context window.
 - **Details on demand:** click a segment to open its breakdown.
@@ -44,7 +45,9 @@ Choose one edition from [Releases](https://github.com/JaffryGao/codex-runstrip/r
 | Full — recommended if unsure | `Codex-Runstrip-macos-arm64.zip` | About 121 MB | Included; no separate installation |
 | Lite — for users who already have Node.js | `Codex-Runstrip-Lite-macos-arm64.zip` | About 1 MB | Install Node.js 22+ separately |
 
-Sizes refer to the unpacked app; ZIP downloads are smaller. The editions provide the same status-strip features. The full edition's size comes almost entirely from its bundled Node.js runtime.
+Sizes describe the existing release packages; ZIP downloads are smaller. The full edition's size comes almost entirely from its bundled Node.js runtime. The enhancements described here are source changes, not a new published release.
+
+For a self-contained build with Node.js and the BPE tokenizer included, see [Standalone](STANDALONE.md). Full/Lite source builds can also bundle the tokenizer; without it, speed stays unavailable rather than falling back to character counts. Usage, context and turn/step counts remain available.
 
 1. Download one of the ZIP files above.
 2. Unzip it and move `Codex Runstrip.app` (Full) or `Codex Runstrip Lite.app` (Lite) to Applications.
@@ -67,11 +70,15 @@ Codex Runstrip uses Chrome DevTools Protocol (CDP) to inject a small DOM overlay
 
 - Session data is read from `~/.codex/sessions`; it is not uploaded by Codex Runstrip.
 - The injector connects to the local debugging endpoint. It does not expose a remote service.
-- The current implementation selects the most recently modified session file globally. With multiple active sessions, the displayed figures may belong to a different session.
-- Turns count `task_started` events. Tool steps count completed items from a defined set of tool types, not every UI action.
+- Each page binds to the active composer's formal conversation ID and host. An unambiguous selected-sidebar entry is a fallback. Temporary IDs and ambiguous selection stay pending; results arriving after a chat/host switch are discarded, including empty results.
+- Local log statistics use only the selected thread's file. Remote-host logs are not read. Detached chat windows are not yet attached by the injector.
+- Turns count unique `task_started.turn_id` values. Steps count unique completed item IDs for the supported tool types in `src/stats.mjs`, not text, reasoning, pending calls or every UI action.
 - Token totals and cache ratio are aggregated for the selected session log. Cache ratio is not split by model.
-- Context occupancy uses the latest recorded input size and context-window value.
-- Output rate and model time are estimates derived from event timestamps. The system-prompt and tool-definition portions of the context breakdown are fixed estimates, not measured values.
+- Context occupancy uses the latest recorded input size and context-window value. New chats show pending usage/cache/context until usage is recorded; turns and steps can appear earlier.
+- The main `≈ tok/s` counts observable assistant-text and reasoning deltas with local `tiktoken 1.0.22 / o200k_base` BPE. It uses about two seconds of arrival-time samples, with a first-chunk baseline and at least one second of warmup. Hidden reasoning and tool-result text are not counted; the server tokenizer can differ. This is not exact server decoding speed.
+- The rectangle changes only with output. Pauses and completion preserve its position and last rate. Gaps over two seconds and tool boundaries start a fresh speed window. Main-strip P50/P95 use nearest-rank percentiles of the current turn's latest 500 approximately one-second output windows; a short trailing window is excluded. These are throughput percentiles, not per-token latency percentiles.
+- Details show actual server `output_tokens` (including reasoning), response rate from observed timing, and separate same-model history. Missing or ambiguous timing is omitted; these values do not replace the main stream rate. Reloading the page cannot recover earlier live samples.
+- Stream text is held in memory for tokenization and cleared at segment completion. Missing/incompatible tokenizers or oversized segments produce no fabricated numeric fallback.
 
 ### Build from source
 
@@ -95,6 +102,10 @@ RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
 
 Full builds require Node.js 22+ on the build machine; Lite builds do not, but running Lite does. To keep previous releases, set `RUNSTRIP_RELEASE_ROOT` to a new output directory.
 
+To include the tokenizer in any edition, set `RUNSTRIP_TOKENIZER_SOURCE` to an extracted tiktoken **1.0.22** package and `RUNSTRIP_TOKENIZER_LICENSE` to its license file before building. Standalone requires these inputs and a self-contained Node runtime; it rejects external dynamic-library dependencies and records Node's minimum macOS version. See [build inputs and commands](STANDALONE.md#build-from-source).
+
+Run the synthetic regression suite with `node --test test/*.test.mjs`. Set `RUNSTRIP_TOKENIZER_PATH` to enable real BPE integration tests; set `RUNSTRIP_TEST_APP` to a built standalone `.app` to enable macOS bundle/signature/isolation tests. Otherwise those integration tests are explicitly skipped. `test/preview.html` is a local UI fixture with synthetic data; live speed needs `createTokenizerScript().script` loaded before `src/inject.js`.
+
 Build outputs are written under `dist/` or `release/`. Existing app bundles and release targets are not overwritten by default.
 
 ### Project status
@@ -107,7 +118,8 @@ Codex Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点�
 
 ### 显示内容
 
-- **会话活动：**任务轮次、指定类型的工具步骤，以及近似输出速度。
+- **输出速度：**随输出变化的矩形、近期 BPE Token/s，整轮完成后的 P50/P95。
+- **会话活动：**当前聊天去重后的任务轮次和已完成工具步数。
 - **Token 用量：**所选会话日志中的累计输入/输出 Token 和总体缓存命中率。
 - **上下文窗口：**最近记录的输入量及其占上下文窗口的比例。
 - **按需查看：**点击状态条各分区查看明细。
@@ -121,7 +133,9 @@ Codex Runstrip 为 Codex 桌面端的输入框下方增加一条紧凑、可点�
 | 完整版：不确定时选这个 | `Codex-Runstrip-macos-arm64.zip` | 约 121 MB | 已内置，无需另行安装 |
 | 轻量版：适合已安装 Node.js 的用户 | `Codex-Runstrip-Lite-macos-arm64.zip` | 约 1 MB | 需自行安装 Node.js 22 或更新版本 |
 
-以上为解压后的应用大小，ZIP 下载包更小。两个版本的状态条功能相同，完整版的体积几乎全部来自内置 Node.js。
+以上为已有发布包的解压后体积，ZIP 下载包更小；完整版的体积几乎全部来自内置 Node.js。本文增强功能是源码改动，尚未作为新版本发布。
+
+需要内置 Node.js 与 BPE 分词器的独立包，参见 [Standalone](STANDALONE.md)。Full/Lite 源码构建也可内置分词器；缺失时速度保持不可用，不回退到字符换算，用量、上下文和轮步统计仍可使用。
 
 1. 下载上述任一 ZIP。
 2. 解压后将 `Codex Runstrip.app`（完整版）或 `Codex Runstrip Lite.app`（轻量版）移入“应用程序”。
@@ -144,11 +158,15 @@ Codex Runstrip 通过 Chrome DevTools Protocol（CDP）在运行时注入轻量 
 
 - 会话数据读取自 `~/.codex/sessions`；Codex Runstrip 不会上传会话内容。
 - 注入器连接本机调试端点，不对外提供远程服务。
-- 当前实现全局选择最近修改的会话文件。多个会话同时活动时，底栏可能显示另一个会话的数据。
-- 轮次按 `task_started` 事件计数；工具步骤只统计指定工具类型的完成事件，不等同于所有 UI 操作。
+- 每个页面优先绑定活动输入区的正式会话 ID 与 host；唯一且明确的侧栏选中项作为回退。临时 ID 或歧义绑定保持待统计；切换聊天/host 后拒绝旧请求的迟到结果，包括空结果。
+- 本地日志只读取选中聊天对应的文件，暂不读取远端 host 日志。注入器尚未连接分离出来的聊天窗口。
+- 轮次按 `task_started.turn_id` 去重；步数按 `src/stats.mjs` 支持的已完成工具 item ID 去重，正文、思考和执行中的工具不计步，并非所有 UI 操作。
 - Token 总量和缓存命中率按所选会话日志汇总，缓存率没有按模型拆分。
-- 上下文占用使用最近记录的输入量和上下文窗口值。
-- 输出速度和模型用时是根据事件时间戳推算的近似值；上下文拆分中的系统提示词和工具定义是固定估值，并非实测。
+- 上下文使用最近已结算请求的输入量与窗口。新聊天尚未有 usage 时，用量/缓存/上下文显示待统计，轮步数可提前显示。
+- 主条 `≈ tok/s` 用本机 `tiktoken 1.0.22 / o200k_base` 对可观测正文和思考增量做 BPE 分词，按最近约 2 秒的到达窗口统计；首块作基线，至少预热 1 秒。不含隐藏思考或工具返回文本，服务端词表也可能不同，因此不是服务端精确解码速度。
+- 矩形只随输出变化，停流和完成后保留位置与最后速度。超过 2 秒的无输出间隔及工具边界重新预热。主条 P50/P95 是本轮最近 500 个约 1 秒有效输出窗的最近秩分位数，不足 1 秒的尾窗不参与；它们是吞吐率分位数，不是逐 Token 延迟分位数。
+- 详情单独展示服务端真实 `output_tokens`（含思考）、按可观测时长计算的响应速度和同模型历史；时长缺失或配对不明确的样本不计速度，也不替换主条流式数值。重载页面无法恢复之前的实时采样。
+- 流式文本仅在内存中供分词使用，分段结束后清除；分词器缺失、不兼容或片段过大时不编造数值。
 
 ### 从源码构建
 
@@ -171,6 +189,10 @@ RUNSTRIP_EDITION=lite CODEX_FORK_APP_NAME="Codex Runstrip Lite" ./build.sh
 ```
 
 构建完整版需要本机安装 Node.js 22 或更新版本；构建轻量版不需要，但运行轻量版需要。设置 `RUNSTRIP_RELEASE_ROOT` 为新目录，可保留已有发布包。
+
+各版本均可在构建时设置 `RUNSTRIP_TOKENIZER_SOURCE` 指向解压的 tiktoken **1.0.22**，并设置 `RUNSTRIP_TOKENIZER_LICENSE` 指向其许可证。Standalone 强制要求这两项及自包含 Node 运行时，拒绝外部动态库依赖，并写入 Node 所需的最低 macOS 版本，详见 [构建输入与命令](STANDALONE.md#build-from-source)。
+
+运行 `node --test test/*.test.mjs` 验证合成事件回归。设置 `RUNSTRIP_TOKENIZER_PATH` 可启用真实 BPE 集成测试；设置 `RUNSTRIP_TEST_APP` 指向构建后的独立版 `.app` 可启用 macOS 包结构、签名与隔离测试；未配置时明确跳过对应测试。`test/preview.html` 是模拟数据 UI 页面，实时分词需先加载 `createTokenizerScript().script` 再加载 `src/inject.js`。
 
 构建产物分别放在 `dist/` 或 `release/`。默认不会覆盖已存在的应用包或发布目标。
 

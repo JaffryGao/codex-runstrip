@@ -9,9 +9,9 @@ DIST_DIR="$ROOT_DIR/dist"
 OUTPUT_DIR="${CODEX_FORK_OUTPUT_DIR:-$DIST_DIR}"
 EDITION="${RUNSTRIP_EDITION:-full}"
 case "$EDITION" in
-  full) DEFAULT_APP_NAME="Codex Runstrip" ;;
+  full|standalone) DEFAULT_APP_NAME="Codex Runstrip" ;;
   lite) DEFAULT_APP_NAME="Codex Runstrip Lite" ;;
-  *) printf '未知版本：%s（使用 full 或 lite）\n' "$EDITION" >&2; exit 1 ;;
+  *) printf '未知版本：%s（使用 full、lite 或 standalone）\n' "$EDITION" >&2; exit 1 ;;
 esac
 APP_NAME="${CODEX_FORK_APP_NAME:-$DEFAULT_APP_NAME}"
 APP_DIR="$OUTPUT_DIR/$APP_NAME.app"
@@ -32,7 +32,7 @@ if [ ! -f "$ICON_SOURCE" ]; then
   printf '找不到 ChatGPT 图标：%s\n请设置 CODEX_APP_PATH 指向 ChatGPT.app。\n' "$ICON_SOURCE" >&2
   exit 1
 fi
-if [ "$EDITION" = "full" ]; then
+if [ "$EDITION" != "lite" ]; then
   if [ -z "$NODE_SOURCE" ] || [ ! -x "$NODE_SOURCE" ]; then
     printf '找不到可用的 Node.js。请安装 Node.js 22 或更新版本。\n' >&2
     exit 1
@@ -62,7 +62,43 @@ if [ "$EDITION" = "full" ]; then
   fi
 fi
 
-for file in Info.plist inject.js launcher.sh run.mjs; do
+if [ "$EDITION" = "standalone" ]; then
+  # Homebrew 的 node 可能依赖安装目录外的 dylib，不能直接当独立运行时。
+  NODE_LIBRARIES="$(otool -L "$NODE_SOURCE")"
+  while IFS= read -r dependency; do
+    case "$dependency" in
+      /System/Library/*|/usr/lib/*) ;;
+      *) printf 'Node.js 存在外部动态依赖：%s\n请使用官方自包含运行时。\n' "$dependency" >&2; exit 1 ;;
+    esac
+  done < <(printf '%s\n' "$NODE_LIBRARIES" | tail -n +2 | awk '{print $1}')
+  NODE_MIN_OS="$(xcrun vtool -show-build "$NODE_SOURCE" | awk '$1 == "minos" {print $2; exit}')"
+  if [[ ! "$NODE_MIN_OS" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    printf '无法确认 Node.js 的最低 macOS 版本。\n' >&2
+    exit 1
+  fi
+fi
+
+TOKENIZER_SOURCE="${RUNSTRIP_TOKENIZER_SOURCE:-}"
+TOKENIZER_LICENSE="${RUNSTRIP_TOKENIZER_LICENSE:-$TOKENIZER_SOURCE/LICENSE}"
+if [ "$EDITION" = "standalone" ] || [ -n "$TOKENIZER_SOURCE" ]; then
+  for file in package.json lite/tiktoken_bg.cjs lite/tiktoken_bg.wasm encoders/o200k_base.json; do
+    if [ ! -f "$TOKENIZER_SOURCE/$file" ]; then
+      printf '缺少分词器文件：%s\n请指定 RUNSTRIP_TOKENIZER_SOURCE。\n' "$file" >&2
+      exit 1
+    fi
+  done
+  if [ ! -s "$TOKENIZER_LICENSE" ]; then
+    printf '缺少分词器许可证；请指定 RUNSTRIP_TOKENIZER_LICENSE。\n' >&2
+    exit 1
+  fi
+  if [ "$(/usr/bin/plutil -extract name raw -o - "$TOKENIZER_SOURCE/package.json")" != "tiktoken" ] || \
+     [ "$(/usr/bin/plutil -extract version raw -o - "$TOKENIZER_SOURCE/package.json")" != "1.0.22" ]; then
+    printf '分词器版本不兼容：需要 tiktoken 1.0.22。\n' >&2
+    exit 1
+  fi
+fi
+
+for file in Info.plist inject.js speed.js stats.mjs tokenizer.mjs binding.js launcher.sh run.mjs; do
   if [ ! -f "$SRC_DIR/$file" ]; then
     printf '缺少源码文件：%s\n' "$SRC_DIR/$file" >&2
     exit 1
@@ -81,9 +117,13 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$SRC_DIR/Info.plist" "$CONTENTS_DIR/Info.plist"
 cp "$SRC_DIR/launcher.sh" "$MACOS_DIR/Codex Runstrip"
 cp "$SRC_DIR/inject.js" "$RESOURCES_DIR/inject.js"
+cp "$SRC_DIR/speed.js" "$RESOURCES_DIR/speed.js"
+cp "$SRC_DIR/stats.mjs" "$RESOURCES_DIR/stats.mjs"
+cp "$SRC_DIR/tokenizer.mjs" "$RESOURCES_DIR/tokenizer.mjs"
+cp "$SRC_DIR/binding.js" "$RESOURCES_DIR/binding.js"
 cp "$SRC_DIR/run.mjs" "$RESOURCES_DIR/run.mjs"
 cp "$ICON_SOURCE" "$RESOURCES_DIR/AppIcon.icns"
-if [ "$EDITION" = "full" ]; then
+if [ "$EDITION" != "lite" ]; then
   mkdir -p "$NODE_DIR/bin"
   cp "$NODE_SOURCE" "$NODE_DIR/bin/node"
   cp "$NODE_HOME/LICENSE" "$NODE_DIR/LICENSE"
@@ -92,6 +132,18 @@ else
   /usr/libexec/PlistBuddy -c "Set :CFBundleName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
   /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName Codex Runstrip Lite" "$CONTENTS_DIR/Info.plist"
 fi
+if [ -n "$TOKENIZER_SOURCE" ]; then
+  TOKENIZER_DEST="$RESOURCES_DIR/vendor/tiktoken"
+  mkdir -p "$TOKENIZER_DEST/lite" "$TOKENIZER_DEST/encoders"
+  for file in package.json lite/tiktoken_bg.cjs lite/tiktoken_bg.wasm encoders/o200k_base.json; do
+    cp "$TOKENIZER_SOURCE/$file" "$TOKENIZER_DEST/$file"
+  done
+  cp "$TOKENIZER_LICENSE" "$TOKENIZER_DEST/LICENSE"
+fi
+if [ "$EDITION" = "standalone" ]; then
+  cp "$ROOT_DIR/STANDALONE.md" "$RESOURCES_DIR/STANDALONE.md"
+  /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion $NODE_MIN_OS" "$CONTENTS_DIR/Info.plist"
+fi
 chmod 755 "$MACOS_DIR/Codex Runstrip"
 
 plutil -lint "$CONTENTS_DIR/Info.plist" >/dev/null
@@ -99,6 +151,6 @@ xattr -cr "$APP_DIR"
 codesign --force --sign - "$APP_DIR" >/dev/null
 
 printf '已构建：%s\n版本：%s\n' "$APP_DIR" "$EDITION"
-if [ "$EDITION" = "full" ]; then
+if [ "$EDITION" != "lite" ]; then
   printf 'Node.js：%s (%s, %s)\n' "$NODE_VERSION" "$NODE_ARCH" "$NODE_SOURCE"
 fi
