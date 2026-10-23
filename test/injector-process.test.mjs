@@ -133,7 +133,7 @@ test('the injector exits when Codex closes and removes only its own PID state', 
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port, pidfile = join(root, 'injector.pid');
   try {
-    child = spawn(process.execPath, [fileURLToPath(new URL('../src/run.mjs', import.meta.url)), '--port', String(port)], {
+    child = spawn(process.execPath, [fileURLToPath(new URL('../src/run.mjs', import.meta.url)), '--port', String(port), '--exit-grace', '3000'], {
       env: { ...process.env, CODEX_HOME: root, RUNSTRIP_PIDFILE: pidfile }, stdio: 'ignore',
     });
     await once(child, 'spawn');
@@ -154,6 +154,56 @@ test('the injector exits when Codex closes and removes only its own PID state', 
     server.closeAllConnections();
     server.close();
     if (child && running(child.pid)) await stop(child.pid);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('the injector survives a temporarily unreachable debug port', { skip: process.platform !== 'darwin' }, async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), 'runstrip-transient-')));
+  let server, child, requests = 0;
+  const targets = () => JSON.stringify([{ id: 'test', type: 'page', url: 'app://-/index.html',
+    webSocketDebuggerUrl: 'ws://192.0.2.1/devtools/page/test' }]);
+  const listen = async port => {
+    server = createServer((_req, res) => {
+      requests++;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(targets());
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', resolve);
+    });
+  };
+  const close = async () => {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  };
+  await listen(0);
+  const port = server.address().port;
+  try {
+    child = spawn(process.execPath, [fileURLToPath(new URL('../src/run.mjs', import.meta.url)),
+      '--port', String(port), '--exit-grace', '6000'], {
+      env: { ...process.env, CODEX_HOME: root }, stdio: 'ignore',
+    });
+    await once(child, 'spawn');
+    for (let i = 0; i < 60 && !requests; i++) await delay(50);
+    assert.ok(requests > 0, 'injector never observed the main target');
+    await close();
+    await delay(4000);
+    assert.equal(running(child.pid), true, 'injector exited during a brief port outage');
+    await listen(port);
+    await delay(3000);
+    assert.equal(running(child.pid), true, 'injector did not remain alive after recovery');
+    const recovered = requests;
+    await delay(2000);
+    assert.ok(requests > recovered, 'injector stopped polling after recovery');
+    await close();
+    const deadline = delay(20_000, 'timeout', { ref: false });
+    const result = await Promise.race([once(child, 'exit'), deadline]);
+    assert.notEqual(result, 'timeout', 'injector remained alive after Codex closed');
+  } finally {
+    if (child && running(child.pid)) await stop(child.pid);
+    if (server?.listening) await close().catch(() => {});
     await rm(root, { recursive: true, force: true });
   }
 });

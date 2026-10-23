@@ -17,6 +17,13 @@ const INTERVAL = Number(arg('--interval', 900));
 if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535 || !Number.isFinite(INTERVAL) || INTERVAL < 200) {
   throw new Error('端口或刷新间隔无效');
 }
+// 端口短暂不可达不等于宿主退出：仅当连续多次探测失败且超过宽限期才结束。
+const EXIT_GRACE = Number(arg('--exit-grace', 20_000));
+const STARTUP_GRACE = Number(arg('--startup-grace', 45_000));
+if (![EXIT_GRACE, STARTUP_GRACE].every(ms => Number.isFinite(ms) && ms >= 1000)) {
+  throw new Error('宽限时间无效');
+}
+const FAILURE_LIMIT = 3;
 const tokenizer = createTokenizerScript();
 const inject = tokenizer.script + '\n' + ['binding.js', 'speed.js', 'inject.js'].map(file => readFileSync(join(here, file), 'utf8')).join('\n');
 const sessions = new SessionIndex(join(process.env.CODEX_HOME || join(homedir(), '.codex'), 'sessions'));
@@ -25,7 +32,10 @@ const log = (...args) => console.log(new Date().toISOString(), ...args);
 const connections = new Map();
 let stopping = false;
 let seenMainPage = false;
-let lastMainPageAt = Date.now();
+let lastMainPageAt = performance.now();
+let lastReachableAt = performance.now();
+let failures = 0;
+let lastWarnAt = 0;
 
 async function listTargets() {
   let lastError;
@@ -33,10 +43,10 @@ async function listTargets() {
     try {
       const response = await fetch(`http://${host}:${PORT}/json/list`, { signal: AbortSignal.timeout(1500) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      return { reachable: true, targets: await response.json() };
     } catch (error) { lastError = error; }
   }
-  throw lastError;
+  return { reachable: false, error: lastError };
 }
 
 async function attach(page, connection) {
@@ -123,13 +133,20 @@ process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 log(`注入器启动，端口 ${PORT}`);
 while (!stopping) {
+  let pages = [], reachable = false;
   try {
-    const pages = (await listTargets()).filter(target =>
-      target.type === 'page' && target.url?.startsWith('app://-/index.html') && !target.url.includes('avatar-overlay'));
+    const probe = await listTargets();
+    reachable = probe.reachable;
+    if (reachable) {
+      failures = 0;
+      lastReachableAt = performance.now();
+      pages = probe.targets.filter(target =>
+        target.type === 'page' && target.url?.startsWith('app://-/index.html') && !target.url.includes('avatar-overlay'));
+    }
     if (stopping) break;
     if (pages.length) {
       seenMainPage = true;
-      lastMainPageAt = Date.now();
+      lastMainPageAt = performance.now();
     }
     for (const page of pages) {
       if (stopping) break;
@@ -140,12 +157,20 @@ while (!stopping) {
         .catch(error => { if (!stopping) log('等待重新附着:', error.message); })
         .finally(() => connections.delete(page.id));
     }
-  } catch { /* Codex 未启动时静默等待。 */ }
-  // 启动阶段允许主页面稍后出现；正常连接后，宿主退出就结束，不跨应用重启常驻。
-  if (Date.now() - lastMainPageAt > (seenMainPage ? 3000 : 30_000)) {
+  } catch { reachable = false; }
+  if (!reachable) failures++;
+  // 启动阶段允许主页面稍后出现；正常连接后，只有持续不可达且多次失败才视为宿主退出。
+  const now = performance.now();
+  const silentFor = Math.min(now - lastReachableAt, now - lastMainPageAt);
+  const grace = seenMainPage ? EXIT_GRACE : STARTUP_GRACE;
+  if (failures >= FAILURE_LIMIT && silentFor > grace) {
     log(seenMainPage ? 'Codex 已退出，停止注入器' : '等待 Codex 超时，停止注入器');
     await shutdown();
     break;
+  }
+  if (!reachable && now - lastWarnAt > 15_000) {
+    lastWarnAt = now;
+    log('调试端口暂不可达，继续等待', `连续失败 ${failures} 次`);
   }
   await sleep(1500);
 }
