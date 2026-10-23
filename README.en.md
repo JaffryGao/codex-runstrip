@@ -10,6 +10,14 @@ See the current chat's turns, tool steps, Token usage, cache metrics, and approx
 
 </div>
 
+## Let an AI agent install it
+
+Use the copy button at the top right of the block below, then send the whole sentence to any AI agent.
+
+```text
+Install Codex Runstrip for me. First confirm this Mac is Apple Silicon (only the arm64 build is published), then download Codex-Runstrip-macos-arm64.zip from https://github.com/JaffryGao/codex-runstrip/releases/latest, unzip it, and move Codex Runstrip.app into /Applications. Make sure Node.js 22 or newer is installed, quit ChatGPT/Codex completely, then open Codex Runstrip. If macOS blocks the first launch, allow it via System Settings → Privacy & Security. Finally, tell me whether a status strip appears below the composer.
+```
+
 ## Preview
 
 <img src="docs/images/runstrip-speed.png" alt="Codex Runstrip speed card with current Token rate, P50/P95, and server response data" width="100%">

@@ -10,6 +10,14 @@
 
 </div>
 
+## 让 AI Agent 帮你安装
+
+点下面代码块右上角的复制按钮，把整句发给任意 AI Agent，它会替你装好。
+
+```text
+帮我安装 Codex Runstrip。先确认我的 Mac 是 Apple Silicon（目前只发布 arm64 包），然后从 https://github.com/JaffryGao/codex-runstrip/releases/latest 下载 Codex-Runstrip-macos-arm64.zip，解压后把 Codex Runstrip.app 放进 /Applications；确认已安装 Node.js 22 或更新版本，完全退出 ChatGPT/Codex 后再打开 Codex Runstrip。如果 macOS 拦截首次启动，按“系统设置 → 隐私与安全性”的提示放行。最后告诉我输入框下方有没有出现状态条。
+```
+
 ## 界面预览
 
 <img src="docs/images/runstrip-speed.png" alt="Codex Runstrip 本轮 Token 流速、P50/P95 与实际响应数据" width="100%">
